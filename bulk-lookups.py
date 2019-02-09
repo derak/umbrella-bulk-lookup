@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # This will need the investigate module installed via 'pip install investigate'.
-import investigate, json, fileinput, sys, os, requests, time, re
+import investigate, fileinput, sys, os, time, re
 
 # Use this later to slice up a list.
 def slice(l, n):
@@ -34,7 +34,7 @@ with open(filename) as f:
     # Read one line at a time and keep just the hostname or IP address.
     for line in f:
 
-        # Just the hostname or IP. No URLs, or port numbers.
+        # Just the hostname or IP. No URLs, port numbers, quotes or anything
         line=line.replace('\n', '')
         linedomain=line.split(',')[0].strip('\n')
         linedomain=re.sub(r'\"', '', linedomain)
@@ -44,7 +44,7 @@ with open(filename) as f:
         linedomain=re.sub(r'\/.*$', '', linedomain)
 
         # Uncomment out the next line if the file has a second column for a hit count.
-        # hitcount[linedomain]=line.split(',')[2].strip('\n')
+        # hitcount[linedomain]=line.split(',')[1].strip('\n')
 
         # Ignore any single word entries in the file, that's not a FQDN or IP address.
         if linedomain.find('.')!=-1:
@@ -56,16 +56,16 @@ slices=slice(domains,1000)
 
 # How many chunks do we need?
 size = len(domains)
-chunks = (size/1000)
+chunks = size/1000
 
 # Don't forget about the remainder.
 if (size%1000): chunks=chunks+1
 
 # Print first line of CSV output
-print('Destination,Content Category,Security Category,Blocked Since')
+print('Destination,Content Category,Security Category,Blocked Since,First Seen,Last Seen')
 
 # Uncomment this next line if you have a hit count column and comment out the above line
-# print('Destination,Hit Count,Content Category,Security Category,Blocked Since')
+# print('Destination,Hit Count,Content Category,Security Category,Blocked Since,First Seen,Last Seen')
 
 # Sending to the Investigate API one at a time is inefficient and takes forever.
 # Bulk the information into 1000 entries for each API call.
@@ -111,6 +111,7 @@ for chunk in range(0, chunks):
 
                     # If we do have a security category then pull down the time line array and
                     # print the first date we blocked it from.
+
                     # Since we're already using ',' to delineate columns separate the categories using '|'.
                     sys.stdout.write('|'.join(str(p) for p in categories))
 
@@ -118,18 +119,29 @@ for chunk in range(0, chunks):
                     # entry at a time.
 
                     # Security categories have a time line and use requests python module to pull it down.
-                    auth_header = auth_header={'Authorization':'Bearer ' + api_key}
-                    r = requests.get('https://investigate.api.umbrella.com/timeline/' + domain, headers=auth_header)
+                    security_timeline = inv.timeline(domain)
 
-                    # The REST API reply is json.
-                    result = json.loads(r.text)
+                    # Format the timeline into a date
+                    if security_timeline[0]['timestamp'] is not None:
+                        sys.stdout.write( ',' + time.strftime('%Y-%m-%d', time.localtime(security_timeline[0]['timestamp']/1000)))
+                    else:
+                        # If the timeline is empty
+                        sys.stdout.write(',')
 
-                    # Sometimes the result[] is empty and this is quick, dirty and works.
-                    try:
-                        timestamp = result[ 0 ]['timestamp']
-                        print( ',' + time.strftime('%Y-%m-%d', time.localtime(timestamp/1000)))
-                    except:
-                        print( ',' + str( result ))
+                    # Get the first seen and last seen date on hostnames only.
+                    if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",domain) is None:
+                        security_history = inv.rr_history(domain)
 
-                    # Flush the queue and display the line before the next.
-                    sys.stdout.flush()
+                        # If there is first and last seen dates then print them.
+                        if security_history['rrs_tf']:
+                            sys.stdout.write(',' + security_history['rrs_tf'][0]['first_seen'])
+                            sys.stdout.write(',' + security_history['rrs_tf'][0]['last_seen'])
+                        else:
+                            # If not print empty place holders
+                            sys.stdout.write(',,')
+
+                    # Were done with this line.
+                    print
+
+            # Flush the queue and display the line before the next.
+            sys.stdout.flush()
