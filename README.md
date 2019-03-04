@@ -6,11 +6,11 @@ This simple Python script uses the Umbrella Investigate API to perform a lookup 
 
 The input is a simple text file with one domain, hostname or IP address.
 
-example.com
-example.net
-hostname.example.com
-internetbadguys.com
-67.215.92.210
+> example.com  
+> example.net  
+> hostname.example.com  
+> internetbadguys.com  
+> 67.215.92.210  
 
 - The Investigate API does not accept URLs.
 - The script does not perform much input validation or check returned status code
