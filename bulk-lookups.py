@@ -120,13 +120,16 @@ for chunk in range(0, chunks):
 
                     # Security categories have a time line and use requests python module to pull it down.
                     security_timeline = inv.timeline(domain)
-
-                    # Format the timeline into a date
-                    if security_timeline[0]['timestamp'] is not None:
-                        sys.stdout.write( ',' + time.strftime('%Y-%m-%d', time.localtime(security_timeline[0]['timestamp']/1000)))
-                    else:
+ 
+                    if security_timeline == []:
                         # If the timeline is empty
                         sys.stdout.write(',')
+                    elif security_timeline[0]['timestamp'] is None:
+                        # If the timeline is empty
+                        sys.stdout.write(',')
+                    else:
+                        # Format the timeline into a date
+                        sys.stdout.write( ',' + time.strftime('%Y-%m-%d', time.localtime(security_timeline[0]['timestamp']/1000)))
 
                     # Get the first seen and last seen date on hostnames only.
                     if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",domain) is None:
