@@ -62,10 +62,10 @@ chunks = size/1000
 if (size%1000): chunks=chunks+1
 
 # Print first line of CSV output
-print('Destination,Content Category,Security Category,Blocked Since,First Seen,Last Seen')
+print('Destination,Status,Content Category,Security Category,Blocked Since,First Seen,Last Seen')
 
 # Uncomment this next line if you have a hit count column and comment out the above line
-# print('Destination,Hit Count,Content Category,Security Category,Blocked Since,First Seen,Last Seen')
+# print('Destination,Status,Hit Count,Content Category,Security Category,Blocked Since,First Seen,Last Seen')
 
 # Sending to the Investigate API one at a time is inefficient and takes forever.
 # Bulk the information into 1000 entries for each API call.
@@ -86,6 +86,9 @@ for chunk in range(0, chunks):
         sys.stdout.write('.'.join(domain_safe))
         sys.stdout.write('[.]'+domain_end)
         sys.stdout.write(',')
+
+        # Print Status
+        sys.stdout.write(str(value['status'])+',')
 
         # Uncomment this line out to report on the hit count.
         # sys.stdout.write(str(hitcount[domain])+',')
@@ -120,16 +123,13 @@ for chunk in range(0, chunks):
 
                     # Security categories have a time line and use requests python module to pull it down.
                     security_timeline = inv.timeline(domain)
- 
-                    if security_timeline == []:
-                        # If the timeline is empty
-                        sys.stdout.write(',')
-                    elif security_timeline[0]['timestamp'] is None:
-                        # If the timeline is empty
-                        sys.stdout.write(',')
-                    else:
-                        # Format the timeline into a date
+
+                    # Format the timeline into a date
+                    if (security_timeline != []) and (security_timeline[0]['timestamp'] is not None):
                         sys.stdout.write( ',' + time.strftime('%Y-%m-%d', time.localtime(security_timeline[0]['timestamp']/1000)))
+                    else:
+                        # If the timeline is empty
+                        sys.stdout.write(',')
 
                     # Get the first seen and last seen date on hostnames only.
                     if re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",domain) is None:
